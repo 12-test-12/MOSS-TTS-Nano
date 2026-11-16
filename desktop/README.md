@@ -13,6 +13,22 @@
 
 朗读会自动按句子和空行处理停顿。遇到「不是……而是……」「虽然……但是……」这类明确的对比或转折，且能在音频里定位分句边界时，会轻微突出后半句。
 
+## 使用 Qwen3-TTS 后端
+
+Windows x64 的 0.6B 和 1.7B 可执行软件见 [Qwen 版下载和构建说明](README-QWEN.md)。
+
+从源码启动时，可以用 Qwen3-TTS 0.6B Base 合成语音。音色列表使用仓库里有参考 WAV 的 11 个预设，也可以导入自己的音频，沿用原有的播放、另存和分段停顿功能。克隆使用音色特征，无需输入参考音频的逐字稿。
+
+在仓库根目录激活独立的 Python 3.12 虚拟环境后运行以下命令。有 NVIDIA GPU 时，可先按 [PyTorch 官方安装说明](https://pytorch.org/get-started/locally/) 安装适合驱动的 CUDA 版 `torch` 和 `torchaudio`。应用会自动选用 CUDA，CPU 上合成通常更慢。
+
+```text
+python -m pip install -r desktop/requirements-qwen.txt
+hf download Qwen/Qwen3-TTS-12Hz-0.6B-Base --local-dir build/desktop/qwen-model
+python -m desktop.app --qwen-model build/desktop/qwen-model
+```
+
+模型约 2.5 GB，下载完成后从本地加载。源码启动时，默认数据目录是 `desktop/data`。可以追加 `--data-dir <原软件包的 data 目录>`，继续使用原先导入的参考音频和输出目录。
+
 ## 构建和发布
 
 Windows 和 Linux 都使用 Python 3.12 构建。Linux 发布包以 Ubuntu 22.04 x86-64 为构建基线。安装 [CI 所用的系统库](../.github/workflows/desktop.yml)后，在目标系统的独立构建环境中从仓库根目录运行以下命令。构建阶段需要访问 PyPI 和 Hugging Face。两套模型都使用固定提交。
