@@ -2,7 +2,7 @@
 
 ## 使用
 
-从 [GitHub Releases](https://github.com/12-test-12/MOSS-TTS-Nano/releases) 下载对应系统的桌面包，完整解压到可写目录，再双击启动程序。
+从 [GitHub Releases](https://github.com/12-test-12/MOSS-TTS-Nano/releases) 选择 MOSS ONNX 便携版发布，下载对应系统的包，完整解压到可写目录，再双击启动程序。
 
 | 系统 | 下载文件 | 启动程序 |
 | --- | --- | --- |
@@ -15,7 +15,7 @@
 
 ## 使用 Qwen3-TTS 后端
 
-Windows x64 的 0.6B 和 1.7B 可执行软件见 [Qwen 版下载和构建说明](README-QWEN.md)。
+Windows 和 Linux 的 0.6B、1.7B 可执行软件见 [Qwen 版下载和构建说明](README-QWEN.md)。
 
 从源码启动时，可以用 Qwen3-TTS 0.6B Base 合成语音。音色列表使用仓库里有参考 WAV 的 11 个预设，也可以导入自己的音频，沿用原有的播放、另存和分段停顿功能。克隆使用音色特征，无需输入参考音频的逐字稿。
 
@@ -40,7 +40,7 @@ python -m desktop.build
 
 构建产物位于 `dist/`。已有本地 ONNX 模型时，可用 `--models-dir` 指向包含 `MOSS-TTS-Nano-100M-ONNX` 和 `MOSS-Audio-Tokenizer-Nano-ONNX` 两个子目录的目录。
 
-[GitHub Actions 流水线](../.github/workflows/desktop.yml)会在 `main` 上的相关变更、`v*` 或 `desktop-v*` 标签推送后运行。双端构建和 Linux 兼容性检查通过后，流水线自动公开发布两个便携包及 `SHA256SUMS.txt`。`main` 运行发布为 `desktop-<运行 ID>`，标签运行沿用该标签。手动运行默认发布，可取消勾选 `publish_release` 仅构建和验证。PR 运行可从 Actions 下载测试包。
+[MOSS ONNX 流水线](../.github/workflows/desktop.yml)在 `v*` 或 `desktop-v*` 标签推送时运行。双端构建和 Linux 兼容性检查通过后，发布两个便携包及 `SHA256SUMS.txt`。手动运行默认发布，可取消勾选 `publish_release` 仅构建和验证。PR 运行可从 Actions 下载测试包。
 
 Windows 与 Linux 共用按 [模型版本](models.json) 锁定的 Actions 缓存。命中后直接使用缓存模型。两个平台以较快的压缩级别生成安装包，并直接传输成品归档。
 

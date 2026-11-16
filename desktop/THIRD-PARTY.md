@@ -10,3 +10,5 @@ This distribution uses dynamically linked [Qt and PySide6](https://www.qt.io/lic
 [libsndfile](https://github.com/libsndfile/libsndfile) is distributed with SoundFile. [libsoxr](https://sourceforge.net/projects/soxr/) is used by python-soxr. The package license and attribution files are included under `licenses/`.
 
 The Qwen edition uses the Apache-2.0 [Qwen3-TTS runtime](https://github.com/QwenLM/Qwen3-TTS) and either the [0.6B Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base) or [1.7B Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base) model. Preset voice samples come from the OpenMOSS source assets.
+
+The Qwen bundles ship with [CPython](https://www.python.org/) on Windows and [Python Build Standalone](https://github.com/astral-sh/python-build-standalone) on Linux. Their license files are included in the bundled runtime.

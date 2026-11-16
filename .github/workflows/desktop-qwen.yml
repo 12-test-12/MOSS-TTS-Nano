@@ -1,20 +1,48 @@
-name: Qwen3-TTS Windows packages
+name: Qwen3-TTS Windows and Linux packages
 
 on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish all four verified packages to GitHub Releases'
+        type: boolean
+        default: true
   push:
-    branches: ['codex/qwen-release']
+    branches: [main]
     tags: ['qwen-v*']
+    paths:
+      - '.github/workflows/desktop-qwen.yml'
+      - 'desktop/**'
+      - 'assets/audio/**'
+      - 'moss_tts_nano/**'
+      - 'onnx_tts_runtime.py'
+      - 'ort_cpu_runtime.py'
+      - 'text_normalization_pipeline.py'
+      - 'tts_robust_normalizer_single_script.py'
 
 permissions:
   contents: read
 
 concurrency:
-  group: qwen-windows-${{ github.ref }}
+  group: qwen-desktop-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    runs-on: windows-2022
+    name: Build and test Qwen 0.6B and 1.7B on ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Windows
+            runner: windows-2022
+            torch_index: https://pypi.org/simple
+            extension: zip
+          - platform: Linux
+            runner: ubuntu-22.04
+            torch_index: https://download.pytorch.org/whl/cpu
+            extension: tar.gz
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 55
     env:
       HF_HUB_DISABLE_IMPLICIT_TOKEN: '1'
@@ -26,27 +54,44 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Install the 64-bit Windows CPU runtime and packaging dependencies
+          cache: pip
+          cache-dependency-path: |
+            desktop/requirements.txt
+            desktop/requirements-qwen.txt
+      - name: Install Linux desktop libraries
+        if: runner.os == 'Linux'
         run: |
-          python -m pip install --index-url https://pypi.org/simple torch==2.8.0 torchaudio==2.8.0
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth libegl1 libgl1 libpulse0 \
+            libasound2 libfontconfig1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 \
+            libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-randr0 libxcb-shape0 \
+            libxcb-xinput0 libxcb-xkb1 libxcb-util1 libwayland-client0 libxkbcommon0
+      - name: Install the x86-64 CPU runtime and packaging dependencies
+        run: |
+          python -m pip install --index-url ${{ matrix.torch_index }} torch==2.8.0 torchaudio==2.8.0
           python -m pip install -r desktop/requirements-qwen.txt
       - uses: actions/cache@v5
         with:
           path: build/desktop/qwen/models
-          key: qwen-windows-models-${{ hashFiles('desktop/qwen_runtime.py') }}
-      - name: Build and test both executable editions
+          key: qwen-desktop-models-${{ hashFiles('desktop/qwen_runtime.py') }}
+          enableCrossOsArchive: true
+      - name: Build and test both Windows editions
+        if: runner.os == 'Windows'
         run: python -m desktop.build_qwen
+      - name: Build and test both Linux editions under X11
+        if: runner.os == 'Linux'
+        run: xvfb-run -a env QT_QPA_PLATFORM=xcb python -m desktop.build_qwen
       - uses: actions/upload-artifact@v7
         with:
-          name: qwen-windows
-          path: |
-            dist/NanoVoice-Qwen-*-Windows-x86_64.zip
-            dist/SHA256SUMS-Qwen.txt
+          name: qwen-${{ matrix.platform }}
+          path: dist/NanoVoice-Qwen-*-${{ matrix.platform }}-x86_64.${{ matrix.extension }}
           compression-level: 0
           if-no-files-found: error
           overwrite: true
 
   release:
+    name: Publish all four Qwen packages
+    if: github.event_name == 'push' || inputs.publish_release
     needs: build
     runs-on: ubuntu-24.04
     permissions:
@@ -54,9 +99,10 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: qwen-windows
+          pattern: qwen-*
           path: dist
-      - name: Publish the two Windows packages
+          merge-multiple: true
+      - name: Publish the Windows and Linux editions
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -70,25 +116,39 @@ jobs:
             tag="qwen-$GITHUB_RUN_ID"
             target=(--target "$GITHUB_SHA")
           fi
-          assets=(dist/NanoVoice-Qwen-0.6B-Windows-x86_64.zip dist/NanoVoice-Qwen-1.7B-Windows-x86_64.zip dist/SHA256SUMS-Qwen.txt)
+          cd dist
+          packages=(
+            NanoVoice-Qwen-0.6B-Windows-x86_64.zip
+            NanoVoice-Qwen-1.7B-Windows-x86_64.zip
+            NanoVoice-Qwen-0.6B-Linux-x86_64.tar.gz
+            NanoVoice-Qwen-1.7B-Linux-x86_64.tar.gz
+          )
+          sha256sum "${packages[@]}" > SHA256SUMS-Qwen.txt
+          assets=("${packages[@]}" SHA256SUMS-Qwen.txt)
           cat > "$RUNNER_TEMP/qwen-release.md" <<'EOF'
-          下载 0.6B 或 1.7B 的 Windows x64 ZIP，完整解压并打开 `NanoVoice-Qwen.exe`。
+          选择操作系统和模型大小，完整解压后打开对应的启动程序。
 
-          - 两版均包含独立 CPU 运行环境，支持预设音色、参考音频克隆和 WAV 导出。
+          | 模型 | Windows x64 | Linux x86-64 |
+          | --- | --- | --- |
+          | 0.6B Base | `NanoVoice-Qwen-0.6B-Windows-x86_64.zip` | `NanoVoice-Qwen-0.6B-Linux-x86_64.tar.gz` |
+          | 1.7B Base | `NanoVoice-Qwen-1.7B-Windows-x86_64.zip` | `NanoVoice-Qwen-1.7B-Linux-x86_64.tar.gz` |
+
+          - Windows 打开 `NanoVoice-Qwen.exe`，Linux 运行 `./NanoVoice-Qwen`。Linux 构建基线为 Ubuntu 22.04。
+          - 四个包均包含独立 CPU 运行环境，支持预设音色、参考音频克隆和 WAV 导出。
           - 首次联网获取对应权重，0.6B 约 2.5 GB，1.7B 约 4.5 GB。模型下载完毕即可离线合成。
           - 手动安装模型的方法见包内 `START-HERE.txt`。
           EOF
           if draft=$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null); then
             if [[ "$draft" == true ]]; then
               gh release upload "$tag" "${assets[@]}" --clobber
-              gh release edit "$tag" --draft=false --latest=false
+              gh release edit "$tag" --draft=false --latest
             fi
           else
-            gh release create "$tag" "${assets[@]}" "${target[@]}" --latest=false \
-              --title "NanoVoice · Qwen3-TTS 0.6B / 1.7B · Windows x64" --notes-file "$RUNNER_TEMP/qwen-release.md"
+            gh release create "$tag" "${assets[@]}" "${target[@]}" --latest \
+              --title "NanoVoice · Qwen3-TTS 0.6B / 1.7B · Windows and Linux" --notes-file "$RUNNER_TEMP/qwen-release.md"
           fi
           gh release view "$tag" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/qwen-assets.txt"
           for path in "${assets[@]}"; do
             grep -Fxq "${path##*/}" "$RUNNER_TEMP/qwen-assets.txt"
           done
-          printf '[Windows 下载](%s/%s/releases/tag/%s)\n' "$GITHUB_SERVER_URL" "$GH_REPO" "$tag" >> "$GITHUB_STEP_SUMMARY"
+          printf '[下载四个 Qwen3-TTS 版本](%s/%s/releases/tag/%s)\n' "$GITHUB_SERVER_URL" "$GH_REPO" "$tag" >> "$GITHUB_STEP_SUMMARY"

@@ -24,7 +24,7 @@ fi
 if draft=$(gh release view "$tag" --json isDraft --jq '.isDraft' 2>/dev/null); then
   if [[ "$draft" == true ]]; then
     gh release upload "$tag" "${assets[@]}" --clobber
-    gh release edit "$tag" --draft=false --latest
+    gh release edit "$tag" --draft=false --latest=false
   else
     names=$(gh release view "$tag" --json assets --jq '.assets[].name')
     for asset in "${assets[@]}"; do
@@ -35,7 +35,7 @@ if draft=$(gh release view "$tag" --json isDraft --jq '.isDraft' 2>/dev/null); t
     done
   fi
 else
-  gh release create "$tag" "${assets[@]}" "${target[@]}" --latest --generate-notes \
+  gh release create "$tag" "${assets[@]}" "${target[@]}" --latest=false --generate-notes \
     --title "NanoVoice · $tag" \
     --notes "Download the Windows ZIP or Linux tar.gz below, extract the entire archive, and open NanoVoice. Both packages include the ONNX models for offline use."
 fi

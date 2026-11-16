@@ -1,4 +1,4 @@
-name: Portable desktop packages
+name: MOSS ONNX portable desktop packages
 
 on:
   workflow_dispatch:
@@ -17,16 +17,7 @@ on:
       - 'text_normalization_pipeline.py'
       - 'tts_robust_normalizer_single_script.py'
   push:
-    branches: [main]
     tags: ['v*', 'desktop-v*']
-    paths:
-      - '.github/workflows/desktop.yml'
-      - 'desktop/**'
-      - 'moss_tts_nano/**'
-      - 'onnx_tts_runtime.py'
-      - 'ort_cpu_runtime.py'
-      - 'text_normalization_pipeline.py'
-      - 'tts_robust_normalizer_single_script.py'
 
 permissions:
   contents: read
@@ -138,8 +129,7 @@ jobs:
   release:
     name: Publish Windows and Linux packages to GitHub Releases
     if: >-
-      (github.event_name == 'push' &&
-       (github.ref == 'refs/heads/main' || github.ref_type == 'tag')) ||
+      github.ref_type == 'tag' ||
       (github.event_name == 'workflow_dispatch' && inputs.publish_release)
     needs: [build, linux-compatibility]
     runs-on: ubuntu-24.04
