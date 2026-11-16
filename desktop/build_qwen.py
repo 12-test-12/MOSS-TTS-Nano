@@ -91,6 +91,8 @@ def verify(archive: Path, edition: str, model: Path) -> None:
             link_or_copy(model / name, target)
         env = os.environ | {"HF_HUB_OFFLINE": "1"}
         env.setdefault("QT_QPA_PLATFORM", "offscreen")
+        if not WINDOWS:
+            env.pop("LD_LIBRARY_PATH", None)
         try:
             subprocess.run([str(package / EXECUTABLE), "--self-test"], env=env, check=True, timeout=600)
             if not (data / "self-test.ok").is_file():
@@ -113,9 +115,10 @@ def build(models: dict[str, Path]) -> list[Path]:
     DIST.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="stage-", dir=QWEN_WORK) as staging:
         stage = Path(staging)
+        launcher_dir = stage / "launcher"
         command = [
             sys.executable, "-m", "PyInstaller", "--noconfirm", "--onefile", "--noupx",
-            "--name", APP_NAME, "--paths", str(ROOT), "--distpath", str(stage),
+            "--name", APP_NAME, "--paths", str(ROOT), "--distpath", str(launcher_dir),
             "--workpath", str(QWEN_WORK / "pyinstaller"), "--specpath", str(QWEN_WORK),
             "--exclude-module", "desktop",
         ]
@@ -130,7 +133,7 @@ def build(models: dict[str, Path]) -> list[Path]:
 
         core = stage / APP_NAME
         core.mkdir()
-        (stage / EXECUTABLE).replace(core / EXECUTABLE)
+        (launcher_dir / EXECUTABLE).replace(core / EXECUTABLE)
         stage_runtime(core)
         copy_notices(core)
         shutil.copy2(ROOT / "desktop" / "START-QWEN.txt", core / "START-HERE.txt")
